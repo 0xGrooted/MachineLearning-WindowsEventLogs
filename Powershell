@@ -1,0 +1,34 @@
+#Paste this into a windows Powershell Script to get your own Event Manager data for your computer
+# AddDays (-7) will get the previous 7 days.
+# You will get two files ( Security Logs and System Logs) these will be in CSV (Quite big files but I am working on refining this)
+
+$StartDate = (Get-Date).AddDays(-7)
+$LogNames = @("Security", "System", "Application")
+$ExportFolder = "C:\EventLogs_Export"
+
+if (-not (Test-Path -Path $ExportFolder)) {
+    New-Item -Path $ExportFolder -ItemType Directory | Out-Null
+    Write-Host "Created export folder: $ExportFolder"
+}
+foreach ($LogName in $LogNames) {
+    Write-Host "Processing log: $LogName..."
+    $Filter = @{
+        LogName = $LogName
+        StartTime = $StartDate
+    }
+
+    $ExportPath = Join-Path -Path $ExportFolder -ChildPath "$($LogName)_Logs_Last30Days.csv"
+
+    try {
+        Get-WinEvent -FilterHashtable $Filter |
+            Select-Object TimeCreated, Id, LevelDisplayName, ProviderName, Message, MachineName, LogName |
+            Export-Csv -Path $ExportPath -NoTypeInformation -Encoding UTF8
+
+        Write-Host "Successfully exported $LogName logs to $ExportPath"
+
+    } catch {
+        Write-Host "ERROR: Failed to export $LogName log. $($_.Exception.Message)"
+    }
+}
+
+Write-Host "`nExport complete. Check the files in $ExportFolder"
